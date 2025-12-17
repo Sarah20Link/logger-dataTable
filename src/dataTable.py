@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import (Any, Tuple, Union)
-import Exceptions
-from Utilities import floatable
+from exceptions import wrongArguments, valueNotFound
 
 """
 Created on Tue Dec 21 00:36:25 2021
@@ -76,14 +75,14 @@ class dataTable:
             return self.get_cols(list(key))
         elif key in self.rows:
             return self.rows[key].copy()
-        raise Exceptions.valueNotFound()
+        raise valueNotFound()
 
     def __setitem__(self, key, val):
         if isinstance(val, list):
             self.list_append(key, val)
         else:
             temp_var = str(type(val))[7:-1]
-            raise Exceptions.wrongArguments(f"{temp_var} Type was given while not permitted")
+            raise wrongArguments(f"{temp_var} Type was given while not permitted")
 
     def __delitem__(self, key: float) -> None:
         # del(self[i])
@@ -154,7 +153,7 @@ class dataTable:
         for date in dic:
             date = float(date)
             if len(dic[date]) > len(self.header):
-                raise Exceptions.wrongArguments(
+                raise wrongArguments(
                     "number of keys in the input dict can not be more than the the number of keys in the dataTable")
             else:
                 if len(self.header) > len(dic[date]):
@@ -192,7 +191,7 @@ class dataTable:
                     del (self[i])
         else:
             temp_var = str(type(data))[7:-1]
-            raise Exceptions.wrongArguments(f"{temp_var} Type was given while dict and tuple is permitted")
+            raise wrongArguments(f"{temp_var} Type was given while dict and tuple is permitted")
 
     def find_by_cell(self, celVal: list[Any]) -> dataTable:
         """
@@ -234,7 +233,7 @@ class dataTable:
         if enddate is None:
             enddate = time.time()
         if enddate <= strtdate:
-            raise Exceptions.wrongArguments("end date must be smaller than start date")
+            raise wrongArguments("end date must be smaller than start date")
         temp_dict = {}
         for i in list(self.rows.keys()):
             if (includeStrt is False) and (includeEnd is False):
@@ -257,9 +256,9 @@ class dataTable:
 
     def get_slice(self, startKey: float, endKey: float = None, numRows: int = None, less: bool = True) -> dataTable:
         if (endKey is None) and (numRows is None):
-            raise Exceptions.wrongArguments("Either end key or num rows must be given")
+            raise wrongArguments("Either end key or num rows must be given")
         if isinstance(less, bool) is False:
-            raise Exceptions.wrongArguments("'less' argument has to be type bool")
+            raise wrongArguments("'less' argument has to be type bool")
         dates = self.row_keys()
         dates.sort()
         startIndex = dates.index(startKey)
@@ -285,7 +284,7 @@ class dataTable:
         """
         if isinstance(colKey, list) is False:
             temp_var = str(type(colKey))[7:-1]
-            raise Exceptions.wrongArguments(f"{temp_var} Type was given while not permitted")
+            raise wrongArguments(f"{temp_var} Type was given while not permitted")
         dic: dict[float, list] = {i: [] for i in self}
         for k in colKey:
             for i in self:
@@ -325,9 +324,9 @@ class dataTable:
         if (not isinstance(colkey, list)) or (not isinstance(colval, list)):
             temp_var = str(type(colkey))[7:-1]
             temp_var1 = str(type(colval))[7:-1]
-            raise Exceptions.wrongArguments(f"{temp_var}, {temp_var1} Type was given while lists are permitted")
+            raise wrongArguments(f"{temp_var}, {temp_var1} Type was given while lists are permitted")
         if len(colkey) != len(colval):
-            raise Exceptions.wrongArguments("colkey and colval should be the same length")
+            raise wrongArguments("colkey and colval should be the same length")
         d = dataTable(self.header_(), directory=self.dir)
         for i in range(len(colkey)):
             index = self.header_index(colkey[i])
@@ -348,7 +347,7 @@ class dataTable:
         try:
             i = self.header.index(colKey)
         except ValueError:
-            raise Exceptions.valueNotFound()
+            raise valueNotFound()
         else:
             return i
 
@@ -362,7 +361,7 @@ class dataTable:
 
     def list_append(self, key, lst: list) -> None:
         if len(lst) > len(self.header):
-            raise Exceptions.wrongArguments(
+            raise wrongArguments(
                 "number of keys in the input dict can not be more than the the number of keys in the dataTable")
         if floatable(key) is True:
             if len(self.header) > len(lst):
@@ -372,7 +371,7 @@ class dataTable:
             self.rows[key] = lst.copy()
         else:
             temp_var = str(type(key))[7:-1]
-            raise Exceptions.wrongArguments(f"{temp_var} Type was given while float is permitted")
+            raise wrongArguments(f"{temp_var} Type was given while float is permitted")
 
     def merger(self, table: dataTable) -> None:
         """
@@ -419,7 +418,7 @@ class dataTable:
         self and other is a datatable with one column
         """
         if (self.size_()[1] != 1) or (other.size_ != 1):
-            raise Exceptions.wrongArguments("multipication is only allowed between two one column dataframe")
+            raise wrongArguments("multipication is only allowed between two one column dataframe")
         dic = {}
         for key in self:
             dic[key] = self[key][0] * other[key][0]
@@ -433,7 +432,7 @@ class dataTable:
         self and other is a datatable with one column
         """
         if (self.size_()[1] != 1) or (other.size_ != 1):
-            raise Exceptions.wrongArguments("division is only allowed between two one-column dataframes")
+            raise wrongArguments("division is only allowed between two one-column dataframes")
         dic = {}
         for key in self:
             dic[key] = self[key][0] / other[key][0]
@@ -456,7 +455,7 @@ class dataTable:
         """
 
         if (factor1 not in self.header) or (factor2 not in self.header) or (op not in self.header):
-            raise Exceptions.valueNotFound()
+            raise valueNotFound()
         val = 0
         f1 = self.header_index(factor1)
         f2 = self.header_index(factor2)
@@ -485,7 +484,7 @@ class dataTable:
                     temp = self.rows[i][f2] * self.rows[i][m]
                 val += (self.rows[i][f1] * temp)
         else:
-            raise Exceptions.wrongArguments()
+            raise wrongArguments()
 
         return val
 
@@ -499,7 +498,7 @@ class dataTable:
         if key in self.rows:
             self.rows[key] = value
         else:
-            raise Exceptions.valueNotFound("you should consider appending the data")
+            raise valueNotFound("you should consider appending the data")
 
     def row_to_dict(self, rowList: list) -> dict:
         rowList = rowList.copy()
@@ -508,7 +507,7 @@ class dataTable:
             while len(rowList) < len(headers):
                 rowList.append(None)
         elif len(rowList) > len(headers):
-            raise Exceptions.wrongArguments("lenght of rowList should not be bigger than dataTable headers")
+            raise wrongArguments("lenght of rowList should not be bigger than dataTable headers")
         dictionary = {}
         for i in range(len(rowList)):
             dictionary[headers[i]] = rowList[i]
@@ -550,7 +549,7 @@ class dataTable:
         try:
             index = self.header_index(colKey)
         except ValueError:
-            raise Exceptions.valueNotFound()
+            raise valueNotFound()
         for i in self:
             try:
                 summ += float(self.rows[i][index])
@@ -599,7 +598,7 @@ class dataTable_multi(dataTable):
         row = self[key]
         for i in otherRow:
             if isinstance(i, tuple):
-                raise Exceptions.wrongArguments("tuples are not permited to be enetered into dataTable by the user")
+                raise wrongArguments("tuples are not permited to be enetered into dataTable by the user")
         final_list = []
         for index, val in enumerate(row):
             if isinstance(val, tuple) is True:
@@ -627,9 +626,9 @@ class dataTable_multi(dataTable):
             date = float(date)
             for i in dic[date]:
                 if isinstance(i, tuple):
-                    raise Exceptions.wrongArguments("tuples are not permited to be enetered into dataTable by the user")
+                    raise wrongArguments("tuples are not permited to be enetered into dataTable by the user")
             if len(dic[date]) > len(self.header):
-                raise Exceptions.wrongArguments(
+                raise wrongArguments(
                     "number of keys in the input dict can not be more than the the number of keys in the dataTable")
             else:
                 temp_lst = []
@@ -664,9 +663,9 @@ class dataTable_multi(dataTable):
     #     if (not isinstance(colkey, list)) or (not isinstance(colval, list)):
     #         temp_var = str(type(colkey))[7:-1]
     #         temp_var1 = str(type(colval))[7:-1]
-    #         raise Exceptions.wrongArguments(f"{temp_var}, {temp_var1} Type was given while lists are permitted")
+    #         raise wrongArguments(f"{temp_var}, {temp_var1} Type was given while lists are permitted")
     #     if len(colkey) != len(colval):
-    #         raise Exceptions.wrongArguments("colkey and colval should be the same length")
+    #         raise wrongArguments("colkey and colval should be the same length")
     #     dic = {}
     #     for i in range(len(colkey)):
     #         index = self.header_index(colkey[i])
@@ -700,12 +699,12 @@ class dataTable_multi(dataTable):
 
     def list_append(self, date, lst: list):
         if len(lst) > len(self.header):
-            raise Exceptions.wrongArguments(
+            raise wrongArguments(
                 "number of keys in the input dict can not be more than the the number of keys in the dataTable")
         if isinstance(date, float) or isinstance(date, int):
             for i in lst:
                 if isinstance(i, tuple):
-                    raise Exceptions.wrongArguments("tuples are not permited to be enetered into dataTable by the user")
+                    raise wrongArguments("tuples are not permited to be enetered into dataTable by the user")
             if len(self.header) > len(lst):
                 temp_var = len(self.header) - len(lst)
                 for i in range(temp_var):
@@ -715,7 +714,7 @@ class dataTable_multi(dataTable):
             self.rows[date] = lst.copy()
         else:
             temp_var = str(type(date))[7:-1]
-            raise Exceptions.wrongArguments(f"{temp_var} Type was given while float is permitted")
+            raise wrongArguments(f"{temp_var} Type was given while float is permitted")
 
 
 def pd_to_dataTable(df) -> dataTable:
