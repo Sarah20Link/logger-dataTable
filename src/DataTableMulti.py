@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import (Any, Tuple, Union)
-from exceptions import wrongArguments, valueNotFound
+from exceptions import WrongArguments, ValueNotFound
 from DataTable import DataTable
 """
 Created on Tue Dec 21 00:36:25 2021
@@ -20,7 +20,7 @@ class DataTableMulti(DataTable):
         row = self[key]
         for i in otherRow:
             if isinstance(i, tuple):
-                raise wrongArguments("tuples are not permited to be enetered into dataTable by the user")
+                raise WrongArguments("tuples are not permited to be enetered into dataTable by the user")
         final_list = []
         for index, val in enumerate(row):
             if isinstance(val, tuple) is True:
@@ -48,9 +48,9 @@ class DataTableMulti(DataTable):
             date = float(date)
             for i in dic[date]:
                 if isinstance(i, tuple):
-                    raise wrongArguments("tuples are not permited to be enetered into dataTable by the user")
+                    raise WrongArguments("tuples are not permited to be enetered into dataTable by the user")
             if len(dic[date]) > len(self.header):
-                raise wrongArguments(
+                raise WrongArguments(
                     "number of keys in the input dict can not be more than the the number of keys in the dataTable")
             else:
                 temp_lst = []
@@ -121,12 +121,12 @@ class DataTableMulti(DataTable):
 
     def list_append(self, date, lst: list):
         if len(lst) > len(self.header):
-            raise wrongArguments(
+            raise WrongArguments(
                 "number of keys in the input dict can not be more than the the number of keys in the dataTable")
         if isinstance(date, float) or isinstance(date, int):
             for i in lst:
                 if isinstance(i, tuple):
-                    raise wrongArguments("tuples are not permited to be enetered into dataTable by the user")
+                    raise WrongArguments("tuples are not permited to be enetered into dataTable by the user")
             if len(self.header) > len(lst):
                 temp_var = len(self.header) - len(lst)
                 for i in range(temp_var):
@@ -136,5 +136,5 @@ class DataTableMulti(DataTable):
             self.rows[date] = lst.copy()
         else:
             temp_var = str(type(date))[7:-1]
-            raise wrongArguments(f"{temp_var} Type was given while float is permitted")
+            raise WrongArguments(f"{temp_var} Type was given while float is permitted")
 

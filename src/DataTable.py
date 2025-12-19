@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import (Any, Tuple, Union)
-from exceptions import wrongArguments, valueNotFound
+from exceptions import WrongArguments, ValueNotFound
+from types import RowTyping, RowValueTyping, KeyTyping
 
 """
 Created on Tue Dec 21 00:36:25 2021
@@ -22,53 +23,43 @@ def floatable(txt: Any) -> bool:
 
 
 class DataTable:
-    header: list[str]
-    rows: dict[float, list]
-
-    def __all__(self):
-        return ["__copy__", "__eq__"]
-
     def __copy__(self) -> DataTable:
         cop = DataTable(self.header_(), self.get_directory())
         cop.dict_append(self.rows_())
         return cop
 
     def __eq__(self, other: DataTable) -> bool:
-        if type(self) == type(other):
-            if self.header == other.header:
-                if self.rows == other.rows:
-                    return True
+        if type(self) == type(other) and self.header == other.header and self.rows == other.rows:
+                return True
         return False
 
-    def __init__(self, colKeys: list, directory: str = None, misc: Any = None) -> None:
+    def __init__(self, column_keys: list, directory: str = None, misc: Any = None) -> None:
         """
-        colKeys : list of column titles in order excluding date
-        keys that are dates are instances of the class time in unix seconds
+        column_keys : list of column titles in order excluding date
+        keys that are dates are  time in unix seconds
         keys in the table must be unique and new rows appended will replace the existing keys, for repeated indexes
             please check out the solution in dataTable_multi class
         """
-        # self.keys = colKeys.copy()
-        self.header: list = list(map(str, colKeys))
-        self.rows: dict = {}
+        # self.keys = column_keys.copy()
+        self.header: list[str] = list(map(str, column_keys))
+        self.rows: dict[int | float, list[Any]] = {}
         self.dir: str = directory
-        self.miscellaneous = misc
         self.csv_updated = False
-        self.indexx = -1
 
     def __iter__(self):
-        return (i for i in self.rows)
-
-    def __repr__(self):
+        for k in tuple(self.rows.keys()):
+            yield k
+            
+    def __repr__(self) -> str:
         headers = str(self.header)[1:-1].replace("'", "")
         msg = f"\t\t\t\t\t{self.header}\n"
         if len(self) == 0:
             return f"Empty dataTable.\nHeaders:\t\t\t\t\t{headers}\n"
         for i in self:
             msg = msg + f"{i}:\t\t{self[i]}\n"
-
         return msg
 
-    def __str__(self):
+    def __str__(self) -> str:
         msg = f"\t\t\t\t\t{self.header}\n"
         if len(self) == 0:
             return f"Empty dataTable.\nHeaders:\t\t\t\t\t{str(self.header)[1:-1]}\n"
@@ -80,24 +71,21 @@ class DataTable:
     def __len__(self) -> int:
         return len(self.rows)
 
-    def __getitem__(self, key):
-        if key in self.header:
-            return self.get_cols(list(key))
-        elif key in self.rows:
-            return self.rows[key].copy()
-        raise valueNotFound()
+    def __getitem__(self, key: KeyTyping) -> RowValueTyping:
+        return self.rows[key]
 
-    def __setitem__(self, key, val):
+    def __setitem__(self, key: KeyTyping, val: RowValueTyping) -> None:
         if isinstance(val, list):
+            if len(val) != len(self.header):
+                raise ValueError("Length of input does not match the number of headers.")
             self.list_append(key, val)
         else:
-            temp_var = str(type(val))[7:-1]
-            raise wrongArguments(f"{temp_var} Type was given while not permitted")
+            raise WrongArguments(f"{type(val)} Type was given while not permitted.")
 
-    def __delitem__(self, key: float) -> None:
-        # del(self[i])
-        del [self.rows[key]]
+    def __delitem__(self, key: KeyTyping) -> None:
+        self.rows.__delitem__(key)
 
+    # .:: CSV handling ::.
     @classmethod
     def from_csv(cls, directory: str, delimiter: str = ",") -> DataTable:
         """
@@ -116,16 +104,6 @@ class DataTable:
                 key = float(key)
             dt.list_append(key, lst[i][1:])
         return dt
-
-
-    def average(self, colKey: str) -> float:
-        s = self.sum_(colKey)
-        l = len(self)
-        return s / l
-
-    def copy(self) -> DataTable:
-        return self.__copy__()
-
     def CSV_maker(self, directory: str = None) -> None:
         if directory is None:
             dir_ = self.dir
@@ -134,7 +112,6 @@ class DataTable:
         with open(dir_, "w") as csv_file:
             txt = ",".join(str(e) for e in self.header_()) + "\n"
             csv_file.write(f"date,{txt}")
-
     def CSV_appender(self, directory: str = None) -> None:
         dir_ = directory
         if directory is None:
@@ -176,6 +153,29 @@ class DataTable:
                         del self[k]
             self.csv_updated = True
 
+
+
+    # .:: Math ::.
+    def average(self, column_key: str) -> float:
+        return self.sum_col(column_key) / len(self)
+
+
+    # .:: Maintenance ::.
+    def copy(self) -> DataTable:
+        return self.__copy__()
+
+    ######################
+    ######################
+    ######################
+    ######################
+    ######################
+    ######################
+    ######################
+    ######################
+    ######################
+    ######################
+    ######################
+
     def dict_append(self, dic: dict) -> None:
         """
         dic = {key: [row1, row2, ...]}
@@ -183,7 +183,7 @@ class DataTable:
         for date in dic:
             date = float(date)
             if len(dic[date]) > len(self.header):
-                raise wrongArguments(
+                raise WrongArguments(
                     "number of keys in the input dict can not be more than the the number of keys in the dataTable")
             else:
                 if len(self.header) > len(dic[date]):
@@ -221,7 +221,7 @@ class DataTable:
                     del (self[i])
         else:
             temp_var = str(type(data))[7:-1]
-            raise wrongArguments(f"{temp_var} Type was given while dict and tuple is permitted")
+            raise WrongArguments(f"{temp_var} Type was given while dict and tuple is permitted")
 
     def find_by_cell(self, celVal: list[Any]) -> DataTable:
         """
@@ -263,7 +263,7 @@ class DataTable:
         if enddate is None:
             enddate = time.time()
         if enddate <= strtdate:
-            raise wrongArguments("end date must be smaller than start date")
+            raise WrongArguments("end date must be smaller than start date")
         temp_dict = {}
         for i in list(self.rows.keys()):
             if (includeStrt is False) and (includeEnd is False):
@@ -286,9 +286,9 @@ class DataTable:
 
     def get_slice(self, startKey: float, endKey: float = None, numRows: int = None, less: bool = True) -> DataTable:
         if (endKey is None) and (numRows is None):
-            raise wrongArguments("Either end key or num rows must be given")
+            raise WrongArguments("Either end key or num rows must be given")
         if isinstance(less, bool) is False:
-            raise wrongArguments("'less' argument has to be type bool")
+            raise WrongArguments("'less' argument has to be type bool")
         dates = self.row_keys()
         dates.sort()
         startIndex = dates.index(startKey)
@@ -308,19 +308,15 @@ class DataTable:
             dt.list_append(k, self[k])
         return dt
 
-    def get_cols(self, colKey: str) -> DataTable:
+    def get_cols(self, column_key: list[str]) -> DataTable:
         """
-            Fish out a column or multiple colums according to the input colkey and returns it in a anew dataTable
+            Fish out a column or multiple columns according to the input
+            colkey and returns it in a anew dataTable
         """
-        if isinstance(colKey, list) is False:
-            temp_var = str(type(colKey))[7:-1]
-            raise wrongArguments(f"{temp_var} Type was given while not permitted")
-        dic: dict[float, list] = {i: [] for i in self}
-        for k in colKey:
-            for i in self:
-                dic[i].append(self.rows[i][self.header.index(k)])
-        d = DataTable(colKey)
-        d.dict_append(dic)
+        d = DataTable(column_key)
+        for unix in self:
+            r = self[unix]
+            d[unix] = [r[self.header.index(k)] for k in column_key]
         return d
 
     def get_row_cell_value(self, rowkey: float, colkey: str) -> Any:
@@ -354,9 +350,9 @@ class DataTable:
         if (not isinstance(colkey, list)) or (not isinstance(colval, list)):
             temp_var = str(type(colkey))[7:-1]
             temp_var1 = str(type(colval))[7:-1]
-            raise wrongArguments(f"{temp_var}, {temp_var1} Type was given while lists are permitted")
+            raise WrongArguments(f"{temp_var}, {temp_var1} Type was given while lists are permitted")
         if len(colkey) != len(colval):
-            raise wrongArguments("colkey and colval should be the same length")
+            raise WrongArguments("colkey and colval should be the same length")
         d = DataTable(self.header_(), directory=self.dir)
         for i in range(len(colkey)):
             index = self.header_index(colkey[i])
@@ -373,11 +369,11 @@ class DataTable:
     def header_(self) -> list:
         return self.header.copy()
 
-    def header_index(self, colKey) -> int:
+    def header_index(self, column_key) -> int:
         try:
-            i = self.header.index(colKey)
+            i = self.header.index(column_key)
         except ValueError:
-            raise valueNotFound()
+            raise ValueNotFound()
         else:
             return i
 
@@ -391,7 +387,7 @@ class DataTable:
 
     def list_append(self, key, lst: list) -> None:
         if len(lst) > len(self.header):
-            raise wrongArguments(
+            raise WrongArguments(
                 "number of keys in the input dict can not be more than the the number of keys in the dataTable")
         if floatable(key) is True:
             if len(self.header) > len(lst):
@@ -401,7 +397,7 @@ class DataTable:
             self.rows[key] = lst.copy()
         else:
             temp_var = str(type(key))[7:-1]
-            raise wrongArguments(f"{temp_var} Type was given while float is permitted")
+            raise WrongArguments(f"{temp_var} Type was given while float is permitted")
 
     def merger(self, table: DataTable) -> None:
         """
@@ -448,7 +444,7 @@ class DataTable:
         self and other is a datatable with one column
         """
         if (self.size_()[1] != 1) or (other.size_ != 1):
-            raise wrongArguments("multipication is only allowed between two one column dataframe")
+            raise WrongArguments("multipication is only allowed between two one column dataframe")
         dic = {}
         for key in self:
             dic[key] = self[key][0] * other[key][0]
@@ -462,7 +458,7 @@ class DataTable:
         self and other is a datatable with one column
         """
         if (self.size_()[1] != 1) or (other.size_ != 1):
-            raise wrongArguments("division is only allowed between two one-column dataframes")
+            raise WrongArguments("division is only allowed between two one-column dataframes")
         dic = {}
         for key in self:
             dic[key] = self[key][0] / other[key][0]
@@ -485,7 +481,7 @@ class DataTable:
         """
 
         if (factor1 not in self.header) or (factor2 not in self.header) or (op not in self.header):
-            raise valueNotFound()
+            raise ValueNotFound()
         val = 0
         f1 = self.header_index(factor1)
         f2 = self.header_index(factor2)
@@ -514,7 +510,7 @@ class DataTable:
                     temp = self.rows[i][f2] * self.rows[i][m]
                 val += (self.rows[i][f1] * temp)
         else:
-            raise wrongArguments()
+            raise WrongArguments()
 
         return val
 
@@ -528,7 +524,7 @@ class DataTable:
         if key in self.rows:
             self.rows[key] = value
         else:
-            raise valueNotFound("you should consider appending the data")
+            raise ValueNotFound("you should consider appending the data")
 
     def row_to_dict(self, rowList: list) -> dict:
         rowList = rowList.copy()
@@ -537,7 +533,7 @@ class DataTable:
             while len(rowList) < len(headers):
                 rowList.append(None)
         elif len(rowList) > len(headers):
-            raise wrongArguments("lenght of rowList should not be bigger than dataTable headers")
+            raise WrongArguments("lenght of rowList should not be bigger than dataTable headers")
         dictionary = {}
         for i in range(len(rowList)):
             dictionary[headers[i]] = rowList[i]
@@ -565,21 +561,21 @@ class DataTable:
             return dt
         self.merger(dt)
 
-    def set_value_at(self, rowKey: float, colKey: Any, value: Any) -> None:
+    def set_value_at(self, rowKey: float, column_key: Any, value: Any) -> None:
         row = self[rowKey].copy()
-        row[self.header_index(colKey)] = value
+        row[self.header_index(column_key)] = value
         self.row_replace(rowKey, row)
 
     def size_(self) -> Tuple[int, int]:
         t = tuple([len(self.rows), len(self.header)])
         return t
 
-    def sum_col(self, colKey: Any):
+    def sum_col(self, column_key: Any):
         summ = 0
         try:
-            index = self.header_index(colKey)
+            index = self.header_index(column_key)
         except ValueError:
-            raise valueNotFound()
+            raise ValueNotFound()
         for i in self:
             try:
                 summ += float(self.rows[i][index])
