@@ -176,7 +176,7 @@ class DataTable:
     ######################
     ######################
 
-    def dict_append(self, dic: dict) -> None:
+    def dict_append(self, dic: RowTyping) -> None:
         """
         dic = {key: [row1, row2, ...]}
         """
