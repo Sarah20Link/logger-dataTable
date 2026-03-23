@@ -543,5 +543,3 @@ class DataTable:
         return pandas.DataFrame.from_dict(
             self.rows, orient="index", columns=self.header
         )
-
-
