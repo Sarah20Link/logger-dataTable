@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from io import StringIO
 import time
-from types import KeyTyping, RowTyping, RowValueTyping, SingleRowTyping
+from copy import deepcopy
+from io import StringIO
 from typing import Any, Iterable, Literal
 
+from dt_types import KeyTyping, RowTyping, RowValueTyping, SingleRowTyping
 from exceptions import WrongArguments
 
 # Im keeping this here for nostalgia
@@ -81,7 +82,7 @@ class DataTable:
             self.validate_row_count(self.rows)
 
         self.key_unit: Literal["s", "ns"] = key_unit
-        self.__key_func = time.time if key_unit == "s" else time.time_ns()
+        self.__key_func = time.time if key_unit == "s" else time.time_ns
 
     # .:: Maintenance ::.
 
@@ -115,9 +116,9 @@ class DataTable:
             WrongArguments: If rows have inconsistent lengths and
                 ``raise_error`` is True.
         """
-        r = rows.values()
-        _c = len(rows[0])
-        bl = not any(len(row) != _c for row in r)
+        r = list(rows.values())
+        _c = len(r[0])
+        bl = any(len(row) != _c for row in r)
         if bl and raise_error:
             raise WrongArguments("Not all rows have the same number of columns.")
         return bl
@@ -141,9 +142,9 @@ class DataTable:
             WrongArguments: If the column count mismatches and
                 ``raise_error`` is True.
         """
-        if isinstance(row, RowValueTyping):
+        if isinstance(row, dict):
             ln = len(next(iter(row.values())))
-        elif isinstance(row, RowTyping):
+        elif isinstance(row, list):
             ln = len(row)
         else:
             ln = len(row[1])
@@ -207,9 +208,11 @@ class DataTable:
         return len(self.rows) == 0
 
     def __copy__(self) -> DataTable:
-        cop = DataTable(self.header_(), directory=self.get_directory())
-        cop.dict_append(self.rows.copy())
-        return cop
+        return DataTable(
+            deepcopy(self.header),
+            directory=self.get_directory(),
+            rows=deepcopy(self.rows),
+        )
 
     def __eq__(self, other: DataTable) -> bool:
         if (
@@ -529,7 +532,7 @@ class DataTable:
             >>> dt.update_column("price", {1700000000.0: 99.5})
         """
         ind = self.header_index(column)
-        for key, val in mapping:
+        for key, val in mapping.items():
             self[key][ind] = val
 
     def update_rows(self, keys: list[KeyTyping], mapping: dict[str, Any]) -> None:
@@ -697,7 +700,7 @@ class DataTable:
         d = DataTable(columns, directory=self.dir, key_unit=self.key_unit)
         for unix in self:
             d.list_append(
-                [[self[unix][self.header_index(k)] for k in columns] for unix in self],
+                [self[unix][self.header_index(k)] for k in columns],
                 key=unix,
             )
         return d
@@ -872,7 +875,9 @@ class DataTable:
             >>> dt.multiply_col(2)
             >>> dt.multiply_col(other_dt)
         """
-        if (self.shape[1] != 1) or (isinstance(other, DataTable) and other.shape != 1):
+        if (self.shape[1] != 1) or (
+            isinstance(other, DataTable) and other.shape[1] != 1
+        ):
             raise WrongArguments(
                 "Multiplication is only allowed between two one column dataframe, or one column dataframe and a number"
             )
@@ -900,7 +905,9 @@ class DataTable:
             >>> dt.divide_col(100)
             >>> dt.divide_col(other_dt)
         """
-        if (self.shape[1] != 1) or (isinstance(other, DataTable) and other.shape != 1):
+        if (self.shape[1] != 1) or (
+            isinstance(other, DataTable) and other.shape[1] != 1
+        ):
             raise WrongArguments(
                 "Division is only allowed between two one column dataframe, or one column dataframe and a number"
             )
@@ -928,7 +935,9 @@ class DataTable:
             >>> dt.add_col(10)
             >>> dt.add_col(other_dt)
         """
-        if (self.shape[1] != 1) or (isinstance(other, DataTable) and other.shape != 1):
+        if (self.shape[1] != 1) or (
+            isinstance(other, DataTable) and other.shape[1] != 1
+        ):
             raise WrongArguments(
                 "Addition is only allowed between two one column dataframe, or one column dataframe and a number"
             )
@@ -956,7 +965,9 @@ class DataTable:
             >>> dt.subtract_col(5)
             >>> dt.subtract_col(other_dt)
         """
-        if (self.shape[1] != 1) or (isinstance(other, DataTable) and other.shape != 1):
+        if (self.shape[1] != 1) or (
+            isinstance(other, DataTable) and other.shape[1] != 1
+        ):
             raise WrongArguments(
                 "Subtraction is only allowed between two one column dataframe, or one column dataframe and a number"
             )
@@ -983,7 +994,9 @@ class DataTable:
         Example:
             >>> dt.mod_col(10)
         """
-        if (self.shape[1] != 1) or (isinstance(other, DataTable) and other.shape != 1):
+        if (self.shape[1] != 1) or (
+            isinstance(other, DataTable) and other.shape[1] != 1
+        ):
             raise WrongArguments(
                 "Modulo is only allowed between two one column dataframe, or one column dataframe and a number"
             )
