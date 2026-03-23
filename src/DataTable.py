@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from io import StringIO
 from types import KeyTyping, RowTyping, RowValueTyping, SingleRowTyping
-from typing import Any, Tuple, Union, Literal, Iterable
+from typing import Any, Iterable, Literal
 
-from exceptions import ValueNotFound, WrongArguments
+from exceptions import WrongArguments
 
 """
 Created on Tue Dec 21 00:36:25 2021
@@ -32,7 +32,7 @@ class DataTable:
         rows: dict[int | float, list[Any]] | None = None,
         directory: str = None,
         misc: Any = None,
-        key_unit: Literal['s', 'ns'] = 'ns'
+        key_unit: Literal["s", "ns"] = "ns",
     ) -> None:
         """
         column_keys : list of column titles in order excluding date
@@ -49,8 +49,8 @@ class DataTable:
         if self.rows:
             self.validate_row_count(self.rows)
 
-        self.key_unit: Literal['s', 'ns'] = key_unit
-        self.__key_func = time.time if key_unit == 's' else time.time_ns()
+        self.key_unit: Literal["s", "ns"] = key_unit
+        self.__key_func = time.time if key_unit == "s" else time.time_ns()
 
     # .:: Maintenance ::.
     def copy(self) -> DataTable:
@@ -91,8 +91,6 @@ class DataTable:
     @property
     def shape(self) -> tuple[int, int]:
         return len(self.rows), len(self.header)
-
-
 
     @property
     def index(self) -> list[KeyTyping]:
@@ -145,7 +143,9 @@ class DataTable:
     def __len__(self) -> int:
         return len(self.rows)
 
-    def __getitem__(self, key: KeyTyping | tuple[KeyTyping, ...] | slice) -> RowValueTyping | DataTable:
+    def __getitem__(
+        self, key: KeyTyping | tuple[KeyTyping, ...] | slice
+    ) -> RowValueTyping | DataTable:
         if isinstance(key, tuple):
             return self.get_rows_by_keys(*key)
         elif isinstance(key, slice):
@@ -161,6 +161,9 @@ class DataTable:
 
     def __delitem__(self, key: KeyTyping) -> None:
         self.rows.__delitem__(key)
+
+    def __contains__(self, key: KeyTyping) -> bool:
+        return key in self.rows
 
     @classmethod
     def pd_to_dataTable(cls, df) -> DataTable:
@@ -253,13 +256,33 @@ class DataTable:
             [dic[i] if i in dic_keys else None for i in self.header], key=key
         )
 
-
     def drop_column(self, column: str) -> None:
         ind = self.header_index(column)
         self.header.remove(column)
         for key in self:
             del self[key][ind]
 
+    def rename_column(self, **column_name_map) -> None:
+        for k, v in column_name_map.items():
+            if k in self.header:
+                self.header[self.header_index(k)] = v
+
+    def add_column(
+        self,
+        other: DataTable,
+        index: int = -1,
+        prefix: str = "other_",
+        add_prefix_if_not_exist: bool = False,
+    ) -> None:
+        for col in other.header:
+            if (col in self.header) or (
+                col not in self.header and add_prefix_if_not_exist
+            ):
+                self.header.insert(index, f"{prefix}{col}")
+            else:
+                self.header.insert(index, col)
+            for key in self:
+                self.rows[key].insert(index, self[key][index] if key in other else None)
 
     def update_column(self, column: str, mapping: dict[KeyTyping, Any]) -> None:
         ind = self.header_index(column)
@@ -272,14 +295,11 @@ class DataTable:
             for i, v in ind_mp.items():
                 self[key][i] = v
 
-
     def row_to_dict(self, key: KeyTyping) -> dict:
         return {c: self[key][i] for i, c in enumerate(self.header)}
 
-
     def update_cell(self, key: KeyTyping, column: Any, value: Any) -> None:
         self.rows[key][self.header_index(column)] = value
-
 
     def get_rows_by_cell_value(self, *args) -> DataTable:
         """
@@ -307,10 +327,11 @@ class DataTable:
         temp_dict = {k[i]: self.rows[k[i]] for i in range(0, numrows)}
         return DataTable(self.header_(), directory=self.dir, rows=temp_dict)
 
-
     def get_rows_by_keys(self, *args, raise_error: bool = True) -> DataTable:
         try:
-            return DataTable(self.header_(), directory=self.dir, rows={k: self[k] for k in args})
+            return DataTable(
+                self.header_(), directory=self.dir, rows={k: self[k] for k in args}
+            )
         except KeyError:
             if raise_error:
                 raise KeyError()
@@ -347,7 +368,10 @@ class DataTable:
             columns = [columns]
         d = DataTable(columns, directory=self.dir, key_unit=self.key_unit)
         for unix in self:
-            d.list_append([[self[unix][self.header_index(k)] for k in columns] for unix in self], key=unix)
+            d.list_append(
+                [[self[unix][self.header_index(k)] for k in columns] for unix in self],
+                key=unix,
+            )
         return d
 
     def get_cell(self, key: KeyTyping, column: str) -> Any:
@@ -363,17 +387,15 @@ class DataTable:
         index = self.header_index(column)
         return sum(self.rows[i][index] == value for i in self)
 
-    def get_rows_by_col_value(
-        self, mapping: dict[str, Iterable[Any]]
-    ) -> DataTable:
+    def get_rows_by_col_value(self, mapping: dict[str, Iterable[Any]]) -> DataTable:
         rss = set(self.rows.keys())
         dt = DataTable(self.header_(), directory=self.dir, key_unit=self.key_unit)
         for col, vals in mapping.items():
             rss -= set(dt.rows.keys())
             col_ind = self.header_index(col)
             for key in rss:
-                if self[key][col_ind] == vals:
-                    dt.list_append(self[key][col_ind], key=key)
+                if self[key][col_ind] in vals:
+                    dt.list_append(self[key], key=key)
         return dt
 
     def header_(self) -> list:
@@ -382,54 +404,15 @@ class DataTable:
     def header_index(self, column_key: str) -> int:
         return self.header.index(column_key)
 
-
-    def merger(self, table: DataTable) -> None:
-        """
-        adds  cols in table that are not in self to self, non-existing row values should be filled with none
-        """
-        # TODO
-        for head in table.header_():
-            if head not in self.header_():
-                self.header.append(head)
-                for row in self:
-                    row_lst = self[row]
-                    if row not in table.row_keys():
-                        row_lst.append(None)
-                    else:
-                        row_lst.append(table.get_cell(row, head))
-                    self[row] = row_lst
-        table_width = self.shape[1]
-        for head in table.header_():
-            for row in table.row_keys():
-                if row not in self.row_keys():
-                    lst = []
-                    for i in range(table_width - 1):
-                        lst.append(None)
-                    lst.append(table.get_cell(row, head))
-                    self.list_append(row, lst)
-        temp = []
-        for i in table.header_():
-            if i not in self.header_():
-                temp.append(i)
-        if len(temp) > 0:
-            fish = table.fish(temp)
-            self.header.extend(temp)
-            for row in fish:
-                if row in self.rows:
-                    self.rows[row].extend(table[row])
-                else:
-                    r = table[row]
-                    for i in range(0, (len(self.header) - len(temp))):
-                        r.insert(0, None)
-                    self.list_append(row, r)
-
     # .:: Math ::.
     def abs_col(self, column_key: str) -> DataTable:
         """
         perform get absolute value of a column
         """
         index = self.header_index(column_key)
-        return DataTable(["results"], rows={key: [abs(self[key][index])] for key in self})
+        return DataTable(
+            ["results"], rows={key: [abs(self[key][index])] for key in self}
+        )
 
     def sum_of_col(self, column_key: str, raise_error: bool = True) -> float:
         summ = 0
@@ -455,8 +438,12 @@ class DataTable:
                 "Multiplication is only allowed between two one column dataframe, or one column dataframe and a number"
             )
         if isinstance(other, DataTable):
-            return DataTable(["results"], rows={key: [self[key][0] * other[key][0]] for key in self})
-        return DataTable(["results"], rows={key: [self[key][0] * other] for key in self})
+            return DataTable(
+                ["results"], rows={key: [self[key][0] * other[key][0]] for key in self}
+            )
+        return DataTable(
+            ["results"], rows={key: [self[key][0] * other] for key in self}
+        )
 
     def divide_col(self, other: DataTable | int | float) -> DataTable:
         """
@@ -468,8 +455,12 @@ class DataTable:
                 "Division is only allowed between two one column dataframe, or one column dataframe and a number"
             )
         if isinstance(other, DataTable):
-            return DataTable(["results"], rows={key: [self[key][0] / other[key][0]] for key in self})
-        return DataTable(["results"], rows={key: [self[key][0] / other] for key in self})
+            return DataTable(
+                ["results"], rows={key: [self[key][0] / other[key][0]] for key in self}
+            )
+        return DataTable(
+            ["results"], rows={key: [self[key][0] / other] for key in self}
+        )
 
     def add_col(self, other: DataTable | int | float) -> DataTable:
         """
@@ -481,8 +472,12 @@ class DataTable:
                 "Addition is only allowed between two one column dataframe, or one column dataframe and a number"
             )
         if isinstance(other, DataTable):
-            return DataTable(["results"], rows={key: [self[key][0] + other[key][0]] for key in self})
-        return DataTable(["results"], rows={key: [self[key][0] + other] for key in self})
+            return DataTable(
+                ["results"], rows={key: [self[key][0] + other[key][0]] for key in self}
+            )
+        return DataTable(
+            ["results"], rows={key: [self[key][0] + other] for key in self}
+        )
 
     def subtract_col(self, other: DataTable | int | float) -> DataTable:
         """
@@ -494,9 +489,12 @@ class DataTable:
                 "Subtraction is only allowed between two one column dataframe, or one column dataframe and a number"
             )
         if isinstance(other, DataTable):
-            return DataTable(["results"], rows={key: [self[key][0] - other[key][0]] for key in self})
-        return DataTable(["results"], rows={key: [self[key][0] - other] for key in self})
-
+            return DataTable(
+                ["results"], rows={key: [self[key][0] - other[key][0]] for key in self}
+            )
+        return DataTable(
+            ["results"], rows={key: [self[key][0] - other] for key in self}
+        )
 
     def mod_col(self, other: DataTable | int | float) -> DataTable:
         """
@@ -508,29 +506,29 @@ class DataTable:
                 "Modulo is only allowed between two one column dataframe, or one column dataframe and a number"
             )
         if isinstance(other, DataTable):
-            return DataTable(["results"], rows={key: [self[key][0] % other[key][0]] for key in self})
-        return DataTable(["results"], rows={key: [self[key][0] % other] for key in self})
+            return DataTable(
+                ["results"], rows={key: [self[key][0] % other[key][0]] for key in self}
+            )
+        return DataTable(
+            ["results"], rows={key: [self[key][0] % other] for key in self}
+        )
 
-
-    def period_return(
-        self, column: str, descending: bool = False
-    ) -> DataTable:
-        colkey_index=self.header_index(column)
+    def period_return(self, column: str, descending: bool = False) -> DataTable:
+        colkey_index = self.header_index(column)
         keys = sorted(self.rows.keys(), reverse=descending)
         res = {}
         for i in range(1, len(keys)):
-            res[keys[i]]= [(
-                self[keys[i]][colkey_index] - self[keys[i - 1]][colkey_index]
-            ) / self[keys[i - 1]][colkey_index]]
+            res[keys[i]] = [
+                (self[keys[i]][colkey_index] - self[keys[i - 1]][colkey_index])
+                / self[keys[i - 1]][colkey_index]
+            ]
 
         return DataTable(["results"], rows=res)
-
 
     def pct(self, x1_column: str, x2_column: str) -> DataTable:
         x1_col = self.get_cols(x1_column)
         dt = self.get_cols(x2_column).subtract_col(x1_col).divide_col(x1_col)
         return dt
-
 
     def table_duration(self) -> float:
         """
@@ -541,99 +539,9 @@ class DataTable:
 
     def to_pandas(self) -> "pandas.DataFrame":
         import pandas
+
         return pandas.DataFrame.from_dict(
             self.rows, orient="index", columns=self.header
         )
 
 
-
-
-
-if __name__ == "__main__":
-    # numOfRows = 1000000
-    # d= ["ticker", "side", "type", "margin", "algo", "conditional", "oid", "fee",
-    #     "p", "q", "rpt", "r-r", "borrowSize", "loanApplyId", "marginCall"]
-    # # append
-    # startTime = time.perf_counter()
-    # f = dataTable(d)
-    # for i in range(0,numOfRows):
-    #     #f.dict_append(({np.random.randint(100): [np.random.randint(100), 3,np.random.randint(1000),
-    #     np.random.randint(100), np.random.randint(1000),np.random.randint(100),np.random.randint(100),
-    #     np.random.randint(1000),np.random.randint(1000),np.random.randint(100), np.random.randint(1000)]}))
-    #     f.dict_append({i:[(np.random.randint(100)) for a in d]})
-    # # df=f.to_pandas()
-    # print('Elapsed time: {:6.3f} seconds for {:d} rows'.format(time.perf_counter() - startTime, numOfRows))
-    # print(f.shape)
-
-    # # dict
-    # startTime = time.perf_counter()
-    # row_list = []
-    # for i in range (0,5):
-    #     row_list.append(dict( (a,np.random.randint(100)) for a in d))
-    # for i in range( 1,numOfRows-4):
-    #     dict1 = dict( (a,np.random.randint(100)) for a in d)
-    #     row_list.append(dict1)
-
-    # df4 = pandas.DataFrame(row_list, columns=['A','B','C','D','E'])
-    # print('Elapsed time: {:6.3f} seconds for {:d} rows'.format(time.perf_counter() - startTime, numOfRows))
-    # print(df4.shape)
-
-    # -------------------------------------------------------------------------------
-
-    # print(f)
-
-    import time
-
-    st = time.time()
-    f = DataTable(["A", "B", "C", "D"])
-    f.dict_append(({st: [5, 3, 100, 100]}))
-    st = time.time()
-    f[st] = [3, 56, 100, 75]
-    st = time.time()
-    f[st] = [43, 345, 120, 100]
-    st = time.time()
-    f[st] = [367, 589798, 100, 150]
-    st = time.time()
-    f[st] = [0, 3, 90, 110]
-    st = time.time()
-    f.list_append(st, [333, 555, 180, 90])
-
-    # print(f)
-    # import Algo
-    # print(f.sum_col("99988"))
-    # print("________________________________________________ \n")
-    # print("##########")
-    # print("test filo")
-    # rint(f)
-    # for i in f:
-    #     print(i)
-    # print(f[f.row_keys()[3]])
-    st = time.time()
-    f.list_append(st, [333, 555, 444])
-    print(f)
-
-    f.update_cell(st, "B", [34, "XX"])
-    print(f)
-    t = f.get_rows_by_col_value(["B"], [555]).top_row()[1]
-    print(type(t))
-    print(t)
-    # print(f)
-    # print("##########")
-    # q = f.fish([1,12])
-    # g = (f.get_rows_by_col_value(['1', '12'], [[345, 555], 3]))
-    # s = g.__str__()
-    # print(g)
-    # print("######ewer####")
-    # r = f.get_top_rows()
-
-    # enddate = None, includeStrt = True, includeEnd = False, numrows=None, top = True):
-
-    # print(f.get_rows())
-    # print(list(f.get_top_rows(1).header())[0])
-    # print("##########")
-    # print(f.header_index(99988))
-    # print(f.sum_(12))
-
-    # print("________________________________________________ \n")
-    # st = time.time()
-    # f[st] = [367,589798,434]
